@@ -7,17 +7,18 @@ import (
     "os"
     "log"
     "regexp"
+    "strings"
 )
 
 type fileInfo struct {
     filepath string
     lines []string
     content string
-    keywords []keywords
+    keywords []keyword
     filetype string
     
 }
-type keywords struct {
+type keyword struct {
     keyword string
     line int
     matches []string
@@ -35,7 +36,8 @@ func main() {
     fileObj.filepath = *file
     handleFile(&fileObj)
     fileObj.filetype = getFiletype(fileObj)[1]
-    fmt.Printf("%#v\n", fileObj)
+    getKeywords(&fileObj)
+    fmt.Printf("%#v\n", fileObj.keywords)
 }
 
 func doLog(text string){
@@ -61,13 +63,14 @@ func handleFile(fileObj *fileInfo){
         log.Fatal(err)
     }
 }
-func getKeywords(fileObj fileInfo){
+func getKeywords(fileObj *fileInfo){
     var regex []string
     switch fileObj.filetype {
         case "py":
             regex = []string{
                 "(\\w*?)\\W?=",
-                "(([\"'])[^]*?\\2)",
+                "\"([\\s\\S]*?)\"",
+                "'([\\s\\S]*?)'",
                 "(#.*?\n|\r)",
                 "(\"\"\".*?\"\"\")",
             }
@@ -75,19 +78,45 @@ func getKeywords(fileObj fileInfo){
         case "php":
             regex = []string{
                 "(\\$.*?)\\W?=",
-                "(([\"'])[^]*?\\2)",
+                "\"([\\s\\S]*?)\"",
+                "'([\\s\\S]*?)'",
                 "(\\/\\/.*?\\n|\\r)",
                 "(\\/\\*.*?\\*\\/)",
             }
         case "go":
             regex = []string{
-                "(([\"'])[^]*?\\2)",    
+                "\"([\\s\\S]*?)\"",
+                "'([\\s\\S]*?)'",
+                "type ([A-z0-9]*?) struct",
+                "var ([A-z0-9]*?) ",
+                "func ([A-z0-9]*?)\\(",
+                "([A-z])*? :=",
+                "package ([A-z0-9]*?)\\n",
+                "\\/\\*([\\S\\s]*)\\*\\/",
+                "\\/\\/(.*)(?:\n|$)",
+                
             }
     }
-    for x := 0; x < len(regex); x++ {
-        fmt.Println(regex[x])
+    var keywords []keyword
+    for x := 0; x < 1; x++ {
+        //r := regexp.MustCompile(regex[x])
+        r, _ := regexp.Compile(regex[x])
+        matches := r.FindAllStringSubmatch(fileObj.content, -1)
+        for _, match := range matches {
+            var keyword keyword
+            for i := 0; i < len(fileObj.lines); i++{
+                if strings.Contains(fileObj.lines[i], match) {
+                    keyword.line = i
+                }
+            }
+            keyword.keyword = match
+            keywords = append(keywords, keyword)
+        }
+        fmt.Printf("%#v\n\n", matches[1])
     }
+    fileObj.keywords = append(fileObj.keywords, keywords)
 }
+
 func getFiletype(fileObj fileInfo)([]string){
     regex := ".*?\\.([A-z]{2,3})$"
     r, _ := regexp.Compile(regex)
