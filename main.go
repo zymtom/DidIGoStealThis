@@ -30,25 +30,38 @@ func main() {
     verbose = flag.Bool("verbose", false, "Verbose output")
     flag.Parse()
     if(*file == ""){
-        panic("You need to provide a filepath. Use -h for help.")
+        log.Fatal("You need to provide a filepath. Use -h for help.")
     }
     var fileObj fileInfo
     fileObj.filepath = *file
     handleFile(&fileObj)
-    fileObj.filetype = getFiletype(fileObj)[1]
+    getFiletype(&fileObj)
     getKeywords(&fileObj)
     fmt.Printf("%#v\n", fileObj.keywords)
 }
 
 func doLog(text string){
     if(*verbose){
-        //Log here
+        file, err := os.Open("logs")
+        if err != nil {
+            log.Fatal(err)
+        }
+        defer file.Close()
+        
+        f, err := os.Create("logs")
+        w := bufio.NewWriter(f)
+        _, err = w.WriteString(text+"\n")
+        if err != nil {
+            log.Fatal(err)
+        }
+        w.Flush()
     }
 }
 
 func handleFile(fileObj *fileInfo){
     file, err := os.Open(fileObj.filepath)
     if err != nil {
+        doLog("[-]Error retrieving content for file")
         log.Fatal(err)
     }
     defer file.Close()
@@ -60,8 +73,10 @@ func handleFile(fileObj *fileInfo){
     }
 
     if err := scanner.Err(); err != nil {
+        doLog("[-]Error retrieving content for file")
         log.Fatal(err)
     }
+    doLog("[+]Retrieved content for file")
 }
 func getKeywords(fileObj *fileInfo){
     var regex []string
@@ -85,15 +100,15 @@ func getKeywords(fileObj *fileInfo){
             }
         case "go":
             regex = []string{
-                "\"([\\s\\S]*?)\"",
-                "'([\\s\\S]*?)'",
-                "type ([A-z0-9]*?) struct",
-                "var ([A-z0-9]*?) ",
-                "func ([A-z0-9]*?)\\(",
-                "([A-z])*? :=",
-                "package ([A-z0-9]*?)\\n",
-                "\\/\\*([\\S\\s]*)\\*\\/",
-                "\\/\\/(.*)(?:\n|$)",
+                "(\"([\\s\\S]*?)\")",
+                "('([\\s\\S]*?)')",
+                "(type ([A-z0-9]*?) struct)",
+                "(var ([A-z0-9]*?) )",
+                "(func ([A-z0-9]*?)\\()",
+                "(([A-z])*? :=)",
+                "(package ([A-z0-9]*?)\\n)",
+                "(\\/\\*([\\S\\s]*)\\*\\/)",
+                "(\\/\\/(.*)(?:\n|$))",
                 
             }
     }
@@ -101,25 +116,29 @@ func getKeywords(fileObj *fileInfo){
         //r := regexp.MustCompile(regex[x])
         r, _ := regexp.Compile(regex[x])
         matches := r.FindAllStringSubmatch(fileObj.content, -1)
+        //fmt.Printf("Found keywords: %#v\n", matches)
+        doLog("[+]Found keywords")
         for _, match := range matches {
             var keyword keyword
             for i := 0; i < len(fileObj.lines); i++{
                 if strings.Contains(fileObj.lines[i], match[1]) {
                     keyword.line = i
+                    break
                 }
             }
-            keyword.keyword = match[1]
+            keyword.keyword = match[2]
             fileObj.keywords = append(fileObj.keywords, keyword)
         }
-        fmt.Printf("%#v\n\n", matches[1])
+        //fmt.Printf("%#v\n\n", matches[1])
     }
     //fileObj.keywords = append(fileObj.keywords, keywords)
 }
 
-func getFiletype(fileObj fileInfo)([]string){
+func getFiletype(fileObj *fileInfo){
     regex := ".*?\\.([A-z]{2,3})$"
     r, _ := regexp.Compile(regex)
     match := r.FindStringSubmatch(fileObj.filepath)
-    return match
+    doLog("[+]Found filetype: "+match[1])
+    fileObj.filetype = match[1]
 }
 //meme
