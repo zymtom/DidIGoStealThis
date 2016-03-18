@@ -16,7 +16,6 @@ type fileInfo struct {
     content string
     keywords []keyword
     filetype string
-    
 }
 type keyword struct {
     keyword string
@@ -24,10 +23,13 @@ type keyword struct {
     matches []string
 }
 var verbose *bool
+var logToFile *bool
 func main() {
     //fmt.Println(searchQuery("hack"))
     file := flag.String("file", "", "File you want to be searched")
+    filetype := flag.String("file-extension", "", "Extension for the file, if it has none. e.g 'go'")
     verbose = flag.Bool("verbose", false, "Verbose output")
+    logToFile = flag.Bool("log", false, "Turns on logging into the standard file 'logs'") 
     flag.Parse()
     if(*file == ""){
         log.Fatal("You need to provide a filepath. Use -h for help.")
@@ -35,13 +37,20 @@ func main() {
     var fileObj fileInfo
     fileObj.filepath = *file
     handleFile(&fileObj)
-    getFiletype(&fileObj)
+    if *filetype != "" {
+        fileObj.filetype = *filetype
+    }else{
+        getFiletype(&fileObj)
+    }
     getKeywords(&fileObj)
     fmt.Printf("%#v\n", fileObj.keywords)
 }
 
 func doLog(text string){
     if(*verbose){
+        fmt.Println(text)
+    }
+    if(*logToFile){
         file, err := os.Open("logs")
         if err != nil {
             log.Fatal(err)
@@ -138,7 +147,25 @@ func getFiletype(fileObj *fileInfo){
     regex := ".*?\\.([A-z]{2,3})$"
     r, _ := regexp.Compile(regex)
     match := r.FindStringSubmatch(fileObj.filepath)
+    if match == nil {
+        doLog("[-]The filetype could not be found.")
+        log.Fatal("The filetype could not be found. Specify via argument.")
+    }
+    supportedLangs := []string{"go", "php", "py"}
+    if !stringInSlice(match[1], supportedLangs) {
+        doLog("[-]The filetype is not supported yet. Either you can make an issue on the github for this(http://github.com/zymtom/didigostealthis) or you can write your own regex's and make a pull request")
+        log.Fatal("This filetype is not supported yet.")
+    }
+    fmt.Printf("%#v \n",match)
     doLog("[+]Found filetype: "+match[1])
     fileObj.filetype = match[1]
+}
+func stringInSlice(a string, list []string) bool {
+    for _, b := range list {
+        if b == a {
+            return true
+        }
+    }
+    return false
 }
 //meme
