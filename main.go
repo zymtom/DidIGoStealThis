@@ -97,7 +97,6 @@ func getKeywords(fileObj *fileInfo){
                 
             }
     }
-    var keywords []keyword
     for x := 0; x < 1; x++ {
         //r := regexp.MustCompile(regex[x])
         r, _ := regexp.Compile(regex[x])
@@ -105,16 +104,16 @@ func getKeywords(fileObj *fileInfo){
         for _, match := range matches {
             var keyword keyword
             for i := 0; i < len(fileObj.lines); i++{
-                if strings.Contains(fileObj.lines[i], match) {
+                if strings.Contains(fileObj.lines[i], match[1]) {
                     keyword.line = i
                 }
             }
-            keyword.keyword = match
-            keywords = append(keywords, keyword)
+            keyword.keyword = match[1]
+            fileObj.keywords = append(fileObj.keywords, keyword)
         }
         fmt.Printf("%#v\n\n", matches[1])
     }
-    fileObj.keywords = append(fileObj.keywords, keywords)
+    //fileObj.keywords = append(fileObj.keywords, keywords)
 }
 
 func getFiletype(fileObj fileInfo)([]string){
@@ -123,3 +122,4 @@ func getFiletype(fileObj fileInfo)([]string){
     match := r.FindStringSubmatch(fileObj.filepath)
     return match
 }
+//meme
