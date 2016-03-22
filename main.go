@@ -8,6 +8,7 @@ import (
     "log"
     "regexp"
     "strings"
+    "time"
 )
 
 type fileInfo struct {
@@ -16,20 +17,31 @@ type fileInfo struct {
     content string
     keywords []keyword
     filetype string
+    urls []string
 }
 type keyword struct {
     keyword string
     line int
     matches []string
 }
+type urlContent struct {
+    url string
+    content string
+}
 var verbose *bool
 var logToFile *bool
+var threads *int
+var retry *int
+var sleep *int
 func main() {
     //fmt.Println(searchQuery("hack"))
     file := flag.String("file", "", "File you want to be searched")
     filetype := flag.String("file-extension", "", "Extension for the file, if it has none. e.g 'go'")
     verbose = flag.Bool("verbose", false, "Verbose output")
-    logToFile = flag.Bool("log", false, "Turns on logging into the standard file 'logs'") 
+    logToFile = flag.Bool("log", false, "Turns on logging into the standard file 'logs'")
+    threads = flag.Int("threads", 2, "Number of threads to be used while downloading the data.")
+    retry = flag.Int("retry", 3, "Number of times you want the program to attempt to retry downloading data from the website")
+    sleep = flag.Int("sleep", 3, "Time to sleep between retrying to download data")
     flag.Parse()
     if(*file == ""){
         log.Fatal("You need to provide a filepath. Use -h for help.")
@@ -167,5 +179,57 @@ func stringInSlice(a string, list []string) bool {
         }
     }
     return false
+}
+func search(fileObj *fileInfo){
+    tasks := make(chan string)
+    results := make(chan urlContent)
+    var sync sync.WaitGroup
+    for i := 0; i < threads; i++ {
+        sync.Add(1)
+        go func() {
+            for website := range tasks {
+                tries := 0
+                for {
+                    if tries == retry{
+                        time.Sleep(sleep)
+                        break
+                    }
+                    r := getUrlContent(website)
+                    tries++
+                    if r != nil {
+                        var res urlContent
+                        res.url = website
+                        res.content = r
+                        results <- res
+                        break
+                    }else{
+                        //log
+                    }
+                }
+            }
+            sync.Done()
+        }()
+    }
+    
+    for i := 0; i < len(websites); i++ {
+        tasks <- websites[i]
+    }
+    close(tasks)
+    sync.Wait()
+    uniqueUrls := make(map[string]string)
+    for obj := range results {
+    
+    }
+}
+func getUrlContent(url string) string {
+    res, err := http.Get(url)
+    if err != nil { 
+        return nil
+    } else { 
+        body, _ := ioutil.ReadAll(res.Body)
+        res.Body.Close()
+        conv := string(body[:])
+        return conv
+    }
 }
 //meme
