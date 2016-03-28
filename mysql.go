@@ -2,25 +2,14 @@ package main
 
 import (
     //"os"
-    "fmt"
-    "log"
+    //"fmt"
+    //"log"
     "time"
     "github.com/ziutek/mymysql/mysql"
     _ "github.com/ziutek/mymysql/native" // Native engine
     // _ "github.com/ziutek/mymysql/thrsafe" // Thread safe engine
 )
-type fileInfo struct {
-    filepath string
-    lines []string
-    content string
-    keywords []keyword
-    filetype string
-}
-type keyword struct {
-    keyword string
-    line int
-    matches []string
-}
+/*
 func main(){
     db := mysql.New("tcp", "", "127.0.0.1:3306", "root", "", "didigostealthis")
     err := db.Connect()
@@ -32,7 +21,7 @@ func main(){
     fileObj.filetype = "go"
     fmt.Println(insertReport(db, fileObj))
     //rows, res, err := db.Query("select * from X where id > %d", 20)
-}
+}*/
 func insertReport(db mysql.Conn, fileObj fileInfo)(error){
     stmt, err := db.Prepare("insert into reports (filepath, filetype, timestamp) values (?, ?, ?)")
     if err != nil {
