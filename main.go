@@ -8,7 +8,10 @@ import (
     "log"
     "regexp"
     "strings"
-    "time"
+    "strconv"
+    //"errors"
+    //"time"
+    //"sync"
 )
 
 type fileInfo struct {
@@ -35,14 +38,18 @@ var retry *int
 var sleep *int
 func main() {
     //fmt.Println(searchQuery("hack"))
-    file := flag.String("file", "", "File you want to be searched")
-    filetype := flag.String("file-extension", "", "Extension for the file, if it has none. e.g 'go'")
-    verbose = flag.Bool("verbose", false, "Verbose output")
-    logToFile = flag.Bool("log", false, "Turns on logging into the standard file 'logs'")
-    threads = flag.Int("threads", 2, "Number of threads to be used while downloading the data.")
-    retry = flag.Int("retry", 3, "Number of times you want the program to attempt to retry downloading data from the website")
-    sleep = flag.Int("sleep", 3, "Time to sleep between retrying to download data")
-    flag.Parse()
+    paramMap := map[string][]string{
+        "file":[]string{"string", "", "File you want to be searched"},
+        "file-extension":[]string{"string", "", "Extension for the file, if it has none. e.g 'go'"},
+        "verbose":[]string{"bool", "false", "Verbose output"},
+        "log":[]string{"bool", "false", "Turns on log, which by default logs into the standard file 'logs'"},
+        "threads":[]string{"int", "2", "Number of threads to be used while downloading the data."},
+        "retry":[]string{"int", "3", "Number of times you want the program to attempt to retry downloading data from the website"},
+        "sleep":[]string{"int", "3", "Time to sleep between retrying to download data."},
+    }
+    //paramMap["file"] = []string{"string", "", "File you want to be searched"}
+    handleParams(paramMap)
+    /*
     if(*file == ""){
         log.Fatal("You need to provide a filepath. Use -h for help.")
     }
@@ -55,7 +62,7 @@ func main() {
         getFiletype(&fileObj)
     }
     getKeywords(&fileObj)
-    fmt.Printf("%#v\n", fileObj.keywords)
+    fmt.Printf("%#v\n", fileObj.keywords)*/
 }
 
 func doLog(text string){
@@ -129,7 +136,7 @@ func getKeywords(fileObj *fileInfo){
                 "(([A-z])*? :=)",
                 "(package ([A-z0-9]*?)\\n)",
                 "(\\/\\*([\\S\\s]*)\\*\\/)",
-                "(\\/\\/(.*)(?:\n|$))",
+                "(\\/\\/(.*)(?:\n|$|\r))",
                 
             }
     }
@@ -180,7 +187,7 @@ func stringInSlice(a string, list []string) bool {
     }
     return false
 }
-func search(fileObj *fileInfo){
+/*func search(fileObj *fileInfo){
     tasks := make(chan string)
     results := make(chan urlContent)
     var sync sync.WaitGroup
@@ -231,5 +238,67 @@ func getUrlContent(url string) string {
         conv := string(body[:])
         return conv
     }
+}*/
+func handleParams(params map[string][]string){
+    //file := flag.String("config", "", "File you want to be searched")
+    args := map[string]interface{}{}
+    for k, v := range params {
+        if(len(v) != 3){
+            log.Fatal("Not enough arguments for flag: "+k)
+        }
+        types := v[0]
+        defaultvalue := v[1]
+        text := v[2]
+        
+        if types == "string" || types == "str" {
+            args[k] = flag.String(k, defaultvalue, text)  
+        }else if types == "int" || types == "integer" {
+            if i, err := strconv.Atoi(defaultvalue); err == nil {
+                args[k] = flag.Int(k, i, text)
+                //fmt.Println(reflect.TypeOf(meme))  
+            }else{
+                log.Fatal("Invalid default value for flag: "+k + "| "+err.Error())
+            }
+        }else if types == "bool" || types == "boolean" {
+            if strings.ToLower(defaultvalue) == "true" {
+                args[k] = flag.Bool(k, true, text) 
+            }else if strings.ToLower(defaultvalue) == "false"{
+                args[k] = flag.Bool(k, false, text)
+            }else{
+                log.Fatal("Invalid default value for flag: "+k)
+            }
+            
+        }           
+        
+    }
+    flag.Parse()
+    config := map[string]interface{}{}
+    if k, v := args["config"]; v {
+        file, err := os.Open(fileObj.filepath)
+        if err != nil {
+            doLog("[-]Error retrieving content for file")
+            log.Fatal(err)
+        }
+        defer file.Close()
+        scanner := bufio.NewScanner(file)
+        for scanner.Scan() {
+            fileObj.lines = append(fileObj.lines, scanner.Text())
+            fileObj.content = fileObj.content+"\n"+scanner.Text()
+        }
+        if err := scanner.Err(); err != nil {
+            doLog("[-]Error retrieving content for config")
+            log.Fatal(err)
+        }
+    }
+    
+    file := flag.String("file", "", "File you want to be searched")
+    filetype := flag.String("file-extension", "", "Extension for the file, if it has none. e.g 'go'")
+    verbose = flag.Bool("verbose", false, "Verbose output")
+    logToFile = flag.Bool("log", false, "Turns on logging into the standard file 'logs'")
+    threads = flag.Int("threads", 2, "Number of threads to be used while downloading the data.")
+    retry = flag.Int("retry", 3, "Number of times you want the program to attempt to retry downloading data from the website")
+    sleep = flag.Int("sleep", 3, "Time to sleep between retrying to download data")
+    flag.Parse()*/
+
 }
 //meme
