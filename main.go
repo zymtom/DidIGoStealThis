@@ -10,8 +10,10 @@ import (
     "strings"
     "strconv"
     //"errors"
-    //"time"
-    //"sync"
+    "time"
+    "sync"
+    "io/ioutil"
+    "net/http"
 )
 
 type fileInfo struct {
@@ -37,7 +39,6 @@ var threads int
 var retry int
 var sleep int
 func main() {
-    //fmt.Println(searchQuery("hack"))
     paramMap := map[string][]string{
         "file":[]string{"string", "", "File you want to be searched"},
         "file-extension":[]string{"string", "", "Extension for the file, if it has none. e.g 'go'"},
@@ -66,7 +67,8 @@ func main() {
         getFiletype(&fileObj)
     }
     getKeywords(&fileObj)
-    fmt.Printf("%#v\n", fileObj.keywords)
+    search(&fileObj)
+    //fmt.Printf("%#v\n", fileObj.keywords)
 }
 
 func doLog(text string){
@@ -201,10 +203,11 @@ func stringInSlice(a string, list []string) bool {
     }
     return false
 }
-/*func search(fileObj *fileInfo){
+func search(fileObj *fileInfo){
     tasks := make(chan string)
     results := make(chan urlContent)
     var sync sync.WaitGroup
+    var websites []string
     for i := 0; i < threads; i++ {
         sync.Add(1)
         go func() {
@@ -212,12 +215,12 @@ func stringInSlice(a string, list []string) bool {
                 tries := 0
                 for {
                     if tries == retry{
-                        time.Sleep(sleep)
+                        time.Sleep(time.Second * time.Duration(sleep))
                         break
                     }
                     r := getUrlContent(website)
                     tries++
-                    if r != nil {
+                    if r != "" {
                         var res urlContent
                         res.url = website
                         res.content = r
@@ -231,28 +234,35 @@ func stringInSlice(a string, list []string) bool {
             sync.Done()
         }()
     }
-    
+    for _, key := range fileObj.keywords {
+        results, err := searchQuery(key.keyword)
+        if err == nil {
+            for _, v := range results {
+                websites = append(websites, v.URL)
+            }
+        }
+    }
     for i := 0; i < len(websites); i++ {
         tasks <- websites[i]
     }
     close(tasks)
     sync.Wait()
-    uniqueUrls := make(map[string]string)
+    //uniqueUrls := make(map[string]string)
     for obj := range results {
-    
+        fmt.Println("%#v\n", obj)
     }
 }
 func getUrlContent(url string) string {
     res, err := http.Get(url)
     if err != nil { 
-        return nil
+        return ""
     } else { 
         body, _ := ioutil.ReadAll(res.Body)
         res.Body.Close()
         conv := string(body[:])
         return conv
     }
-}*/
+}
 func handleParams(params map[string][]string)(map[string]interface{}){
     args := map[string]interface{}{}
     args["config"] = flag.String("config", "", "Config file to read from, may be used as an alternative to writing cli over and over")
