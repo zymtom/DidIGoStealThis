@@ -31,11 +31,11 @@ type urlContent struct {
     url string
     content string
 }
-var verbose *bool
-var logToFile *bool
-var threads *int
-var retry *int
-var sleep *int
+var verbose bool
+var logToFile bool
+var threads int
+var retry int
+var sleep int
 func main() {
     //fmt.Println(searchQuery("hack"))
     paramMap := map[string][]string{
@@ -48,28 +48,32 @@ func main() {
         "sleep":[]string{"int", "3", "Time to sleep between retrying to download data."},
     }
     //paramMap["file"] = []string{"string", "", "File you want to be searched"}
-    handleParams(paramMap)
-    /*
-    if(*file == ""){
+    values := handleParams(paramMap)
+    if(values["file"] == ""){
         log.Fatal("You need to provide a filepath. Use -h for help.")
     }
+    verbose = values["verbose"].(bool)
+    logToFile = values["log"].(bool)
+    threads = values["threads"].(int)
+    retry = values["retry"].(int)
+    sleep = values["sleep"].(int)
     var fileObj fileInfo
-    fileObj.filepath = *file
+    fileObj.filepath = values["file"].(string)
     handleFile(&fileObj)
-    if *filetype != "" {
-        fileObj.filetype = *filetype
+    if values["file-extension"] != "" {
+        fileObj.filetype = values["file-extension"].(string)
     }else{
         getFiletype(&fileObj)
     }
     getKeywords(&fileObj)
-    fmt.Printf("%#v\n", fileObj.keywords)*/
+    fmt.Printf("%#v\n", fileObj.keywords)
 }
 
 func doLog(text string){
-    if(*verbose){
+    if(verbose){
         fmt.Println(text)
     }
-    if(*logToFile){
+    if(logToFile){
         file, err := os.Open("logs")
         if err != nil {
             log.Fatal(err)
@@ -249,9 +253,9 @@ func getUrlContent(url string) string {
         return conv
     }
 }*/
-func handleParams(params map[string][]string){
-    //file := flag.String("config", "", "File you want to be searched")
+func handleParams(params map[string][]string)(map[string]interface{}){
     args := map[string]interface{}{}
+    args["config"] = flag.String("config", "", "Config file to read from, may be used as an alternative to writing cli over and over")
     for k, v := range params {
         if(len(v) != 3){
             log.Fatal("Not enough arguments for flag: "+k)
@@ -282,26 +286,77 @@ func handleParams(params map[string][]string){
         
     }
     flag.Parse()
-    config := map[string]interface{}{}
-    if k, v := args["config"]; v {
-        file, err := os.Open(fileObj.filepath)
-        if err != nil {
-            doLog("[-]Error retrieving content for file")
-            log.Fatal(err)
-        }
-        defer file.Close()
-        scanner := bufio.NewScanner(file)
-        for scanner.Scan() {
-            fileObj.lines = append(fileObj.lines, scanner.Text())
-            fileObj.content = fileObj.content+"\n"+scanner.Text()
-        }
-        if err := scanner.Err(); err != nil {
-            doLog("[-]Error retrieving content for config")
-            log.Fatal(err)
+    config := make(map[string]string)
+    /*fmt.Printf("%#v\n", args)
+    if str, ok := args["config"].(*string); ok {
+        fmt.Printf("%#v\n", *str)
+        meme = *str
+        fmt.Printf("%#v\n", meme)
+    }*/
+
+    if k, v := args["config"].(*string); v {
+        if *k != ""{
+            file, err := os.Open(*k)
+            if err != nil {
+                doLog("[-]Error retrieving content for config")
+                log.Fatal(err)
+            }
+            defer file.Close()
+            scanner := bufio.NewScanner(file)
+            for scanner.Scan() {
+                ex := strings.Split(scanner.Text(), "=")
+                for _, v := range ex[1:] {
+                    config[ex[0]] = config[ex[0]]+v
+                }
+            }
+            if err := scanner.Err(); err != nil {
+                doLog("[-]Error retrieving content for config")
+                log.Fatal(err)
+            }
         }
     }
-    
-    file := flag.String("file", "", "File you want to be searched")
+    flags := map[string]interface{}{}
+    for k, v := range config {
+        if strings.ToLower(v) == "true" {
+            flags[k] = true
+        }else if strings.ToLower(v) == "false"{
+            flags[k] = false
+        }else if i, err := strconv.Atoi(v); err == nil {
+            flags[k] = i
+        }else{
+            flags[k] = v
+        }
+            
+    }
+    for k, v := range params {
+        if _, vc := flags[k]; vc  {
+            if str, ok := args[k].(*string); ok {
+                if v[1] != *str {
+                    flags[k] = *str
+                }
+            }else if str, ok := args[k].(*int); ok {
+                incInterface := stringToValidType(v[1])
+                if incInterface.(int) != *str {
+                    flags[k] = *str
+                }
+            }else if str, ok := args[k].(*bool); ok {
+                incInterface := stringToValidType(v[1])
+                if incInterface.(bool) != *str {
+                    flags[k] = *str
+                }
+            }
+        }else{
+            if str, ok := args[k].(*string); ok {
+                flags[k] = *str
+            }else if str, ok := args[k].(*int); ok {
+                flags[k] = *str
+            }else if str, ok := args[k].(*bool); ok {
+                flags[k] = *str
+            }
+        }
+    }
+    return flags
+    /*file := flag.String("file", "", "File you want to be searched")
     filetype := flag.String("file-extension", "", "Extension for the file, if it has none. e.g 'go'")
     verbose = flag.Bool("verbose", false, "Verbose output")
     logToFile = flag.Bool("log", false, "Turns on logging into the standard file 'logs'")
@@ -309,6 +364,15 @@ func handleParams(params map[string][]string){
     retry = flag.Int("retry", 3, "Number of times you want the program to attempt to retry downloading data from the website")
     sleep = flag.Int("sleep", 3, "Time to sleep between retrying to download data")
     flag.Parse()*/
-
 }
-//meme
+func stringToValidType(str string)(interface{}){
+    if strings.ToLower(str) == "true" {
+        return true
+    }else if strings.ToLower(str) == "false"{
+        return false
+    }else if i, err := strconv.Atoi(str); err == nil {
+        return i
+    }else{
+        return str
+    }
+}
