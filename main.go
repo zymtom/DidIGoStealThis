@@ -132,6 +132,16 @@ func getKeywords(fileObj *fileInfo){
                 "(\\/\\/(.*)(?:\n|$))",
                 
             }
+        case "java":
+            regex = []string{
+                "(public class (.*?)[ {]{2})",
+                "(\/\/(.*?)[\n\r])",
+                "(\"(.*?)\")",
+                "('(.*?)')",
+                "( (.*?) ?= ?.*?;)",
+                "( .*? ?= ?(.*?);)",
+                "(/*(.*?)*/)"
+            }
     }
     for x := 0; x < 1; x++ {
         //r := regexp.MustCompile(regex[x])
